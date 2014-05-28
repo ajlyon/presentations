@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Title</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style type="text/css">
+      @import url(http://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(http://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(http://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+   body {
+        font-family: 'Droid Serif';
+      }
+      h1, h2, h3 {
+        font-family: 'Yanone Kaffeesatz';
+        font-weight: 400;
+        margin-bottom: 0;
+      }
+      .remark-slide-content h1 { font-size: 3em; }
+      .remark-slide-content h2 { font-size: 2em; }
+      .remark-slide-content h3 { font-size: 1.6em; }
+      .footnote {
+        position: absolute;
+        bottom: 3em;
+      }
+      li p { line-height: 1.25em; }
+      .red { color: #fa0000; }
+      .large { font-size: 2em; }
+      a, a > code {
+        color: rgb(249, 38, 114);
+        text-decoration: none;
+      }
+      code {
+        -moz-border-radius: 5px;
+        -web-border-radius: 5px;
+        background: #e7e8e2;
+        border-radius: 5px;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+      .remark-code-line-highlighted     { background-color: #373832; }
+      .pull-left {
+        float: left;
+        width: 47%;
+      }
+      .pull-right {
+        float: right;
+        width: 47%;
+      }
+      .pull-right ~ p {
+        clear: both;
+      }
+      #slideshow .slide .content code {
+        font-size: 0.8em;
+      }
+      #slideshow .slide .content pre code {
+        font-size: 0.9em;
+        padding: 15px;
+      }
+      .inverse {
+        background: #272822;
+        color: #777872;
+        text-shadow: 0 0 20px #333;
+      }
+      .inverse h1, .inverse h2 {
+        color: #f3f3f3;
+        line-height: 0.8em;
+      }
+
+      /* Slide-specific styling */
+      #slide-inverse .footnote {
+        bottom: 12px;
+        left: 20px;
+      }
+      #slide-how .slides {
+        font-size: 0.9em;
+        position: absolute;
+        top:  151px;
+        right: 140px;
+      }
+      #slide-how .slides h3 {
+        margin-top: 0.2em;
+      }
+      #slide-how .slides .first, #slide-how .slides .second {
+        padding: 1px 20px;
+        height: 90px;
+        width: 120px;
+        -moz-box-shadow: 0 0 10px #777;
+        -webkit-box-shadow: 0 0 10px #777;
+        box-shadow: 0 0 10px #777;
+      }
+      #slide-how .slides .first {
+        background: #fff;
+        position: absolute;
+        top: 20%;
+        left: 20%;
+        z-index: 1;
+      }
+      #slide-how .slides .second {
+        position: relative;
+        background: #fff;
+        z-index: 0;
+      }
+
+      /* Two-column layout */
+      .left-column {
+        color: #777;
+        width: 20%;
+        height: 92%;
+        float: left;
+      }
+        .left-column h2:last-of-type, .left-column h3:last-child {
+          color: #000;
+        }
+      .right-column {
+        width: 75%;
+        float: right;
+        padding-top: 1em;
+      }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle, inverse
+
+# Embracing Gradle
+### Practical build automation for the Android world
+
+Avram Lyon<br>Scopely
+
+AnDevCon Boston, 2014<br><br>http://tiny.cc/gradle
+
+---
+class: center, middle
+
+# A bit on Scopely's build experience
+
+---
+class: center
+
+# March-July 2012
+
+## One title, one codebase
+
+Debug / Release
+
+Google / Amazon
+
+Free / Paid
+## = 
+## 6 Builds
+---
+class: center, middle, inverse
+
+# the road to gradle is paved with home-brew and make-do
+## this is Scopely's road there
+
+---
+# `rake` and `ant`
+.footnote[why use one build tool when you can use two?]
+
+* `goog-free-prod.yaml`:
+```yaml
+app_name: Dice with Buddies Free
+facebook_app_id: 12345678912
+```
+
+* `config/AndroidManifest.xml.erb`:
+```xml
+<application app:label=<%=app_name%> ...>
+```
+* `config/strings.xml.erb`:
+```xml
+<string name="facebook_app_id"><%=facebook_app_id%></string>
+```
+
+```sh
+$ rake configure env=goog-free-prod
+    + config/goog-free-prod.yaml
+      config/amzn-paid-prod.yaml
+ config/AndroidManifest.xml.erb  => AndroidManifest.xml
+ config/strings.xml.erb          => res/values/strings.xml
+$ ant clean release
+```
+
+???
+So we had all this building nicely on TeamCity, and on people's boxes.
+
+---
+# `ant`-`rake`r
+
+1. Worked
+2. `rake` and `ant` experts certainly would have done better
+3. i18n… Not really.
+4. Dependency management? What's that?
+5. All builds had assets and jars for all versions
+6. IDE treated as standard Ant-style project
+  * But it wouldn't build until you `rake`d
+
+
+---
+# More builds
+## January 2013
+* More codebases
+  1. Android-Core (90%+ of code)
+  2. Dice-Android (assets, code tweaks)
+  3. MiniGolf-Android (+ more)
+* Unity components!
+* More developers!
+
+---
+class: middle 
+# Complication multiplies!
+
+```sh
+# generate templated files (Manifest, resources, etc.)
+rake configure env=goog-free-prod
+# Build Unity *.so's and assets, copy them into the Android project
+rake unity unzipUnity
+# Build the game APK
+ant release
+```
+* Versioning specified as argument to `rake configure`
+* `build.xml` fairly standard, with addition of simple package renaming task
+
+---
+class: middle
+# The Good
+* Encapsulated magic in `rake configure` and `rake unity`
+* Arbitrary Ruby code in templates
+
+---
+class: middle, inverse
+# The Bad
+* Encapsulated magic in `rake configure` and `rake unity`
+* Arbitrary Ruby code in templates
+* Ruby? How did that happen?
+* See previous slides.
+
+???
+We had investigated other options, and tried some preliminary work with Maven and even with pre-Google I/O Gradle. But Ant worked.
+---
+class: center
+
+# May 2013
+
+## Three titles
+
+Debug / Release
+
+Google / Amazon
+
+Free / Paid
+## = 
+## 18 Builds
+
+---
+class: middle, center, inverse
+# Google I/O 2013
+
+# Gradle + Android Studio
+
+---
+class: middle
+# Decision to Move
+1. Flavors
+1. Flavors
+1. Testing for library projects
+1. Flavors
+1. Extensibility
+1. Dependency management
+1. Embrace the future
+1. Flavors
+
+???
+Build system migrations have very substantial mental costs... We moved in July, after starting investigation in May.
+
+---
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="<%=@gamepackage%>"
+    android:versionCode="<%=@versionCode%>"
+    android:installLocation="auto"
+    android:versionName="<%=@version%>" >
+
+    <uses-sdk android:minSdkVersion="8" android:targetSdkVersion="17" />
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_CONTACTS" /> 
+    <uses-permission android:name="android.permission.SEND_SMS" /> 
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Start game-specific permissions -->
+<% ERB.new(open(@merge_permissions).read(), nil, nil, "@mergeperm").result(binding)  %>
+<%=@mergeperm%>
+    <!-- End game-specific permissions -->
+
+    <% if @store == "GoogleCheckout" %>
+      <uses-permission android:name="com.android.vending.BILLING" />
+      <uses-permission android:name="com.android.vending.CHECK_LICENSE" />
+      
+      <!-- Used for GCM, a Google-only service -->
+      <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
+      <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+      <uses-permission android:name="android.permission.WAKE_LOCK" />
+      
+      <permission android:name="<%=@package%>.permission.C2D_MESSAGE" android:protectionLevel="signature" />
+    <uses-permission android:name="<%=@package%>.permission.C2D_MESSAGE" /> 
+    <% end %>
+```
+
+---
+# Typical values
+```yaml
+# Game-defining settings
+version: 2.8.0
+game: Dice
+gamepackage: com.withbuddies.dice
+gameurlscheme: dwb
+
+# Build settings
+merge_activities: config/AndroidManifest.merge_activities.erb
+merge_permissions: config/AndroidManifest.merge_permissions.erb
+intent_filter_overrides: []
+```
+`amzn-free-test.yaml`
+```yaml
+package: com.withbuddies.dice.free
+store: AmazonMarketplace
+```
+
+(it keeps on going)
+
+---
+class: middle, inverse
+# Converting to Gradle equivalents
+
+We didn't actually convert everything immediately.
+
+???
+We first added Gradle as a drop-in optional build system, which we only required for some tests.
+
+---
+class: middle
+## Gradle starts with sane, opionionated configuration by convention
+
+```
+/src/main/java
+/src/main/res
+/src/main/assets
+/src/main/AndroidManifest.xml
+
+/src/androidTest/java
+/src/androidTest/res
+...
+```
+---
+# Ant convention
+
+```
+/project/src
+/project/res
+/project/assets
+/project/AndroidManifest.xml
+
+/testProject/src
+/testProject/res
+/testProject/AndroidManifest.xml
+```
+
+---
+# Make Gradle bend to Ant's will
+
+```groovy
+android {
+  sourceSets {
+        main {
+            manifest {
+                srcFile 'project/AndroidManifest.xml'
+            }
+            java {
+                srcDirs = ['library/src']
+            }
+            res {
+                srcDirs = ['library/res']
+            }
+            assets {
+                srcDirs = ['library/assets']
+            }
+            // --snip--
+        }
+
+        androidTest {
+          // no manifest
+          java {
+            srcDirs = ['test/src']
+          }
+          res {
+            srcDirs = ['test/res']
+          }
+        }
+    }
+}
+```
+
+---
+# Custom package name
+
+```groovy
+android {
+    flavorGroups "store", "bundle", "config"
+
+    productFlavors {
+        free {
+            flavorGroup "bundle"
+            packageName 'com.withbuddies.dice.free'
+        }
+        paid {
+            flavorGroup "bundle"
+            packageName 'com.withbuddies.dice'
+        }
+        ...
+    }
+}
+```
+
+Build with:
+`./gradlew installFreeRelease`
+
+???
+We'll see flavors again. They are extremely useful but they are, unfortunately, just part of the Android plugin for Gradle, and are not available in standard Java projects.
+
+---
+class: middle, inverse
+# But… GCM is broken!
+
+---
+# Manifest fragments
+`src/free/AndroidManifest.xml`:
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver android:name="com.withbuddies.core.push.GCMReceiver" android:permission="com.google.android.c2dm.permission.SEND" >
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+                <action android:name="com.google.android.c2dm.intent.REGISTRATION" />
+                <category android:name="com.withbuddies.dice.free" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+    <permission android:name="com.withbuddies.dice.free.permission.C2D_MESSAGE" android:protectionLevel="signature" />
+    <uses-permission android:name="com.withbuddies.dice.free.permission.C2D_MESSAGE" />
+</manifest>
+```
+`src/paid/AndroidManifest.xml` (trimmed out some detail):
+```xml
+    <category android:name="com.withbuddies.dice" />
+    <permission android:name="com.withbuddies.dice.permission.C2D_MESSAGE" android:protectionLevel="signature" />
+    <uses-permission android:name="com.withbuddies.dice.permission.C2D_MESSAGE" />
+```
+
+---
+# Intelligent "new" manifest merging
+
+Optional as of Android plugin 0.10
+
+```groovy
+android {
+  useOldManifestMerger false
+}
+```
+
+`src/main/AndroidManifest.xml`:
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver android:name="com.withbuddies.core.push.GCMReceiver" android:permission="com.google.android.c2dm.permission.SEND" >
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+                <action android:name="com.google.android.c2dm.intent.REGISTRATION" />
+                <category android:name="${packageName}" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+    <permission android:name="${packageName}.permission.C2D_MESSAGE" android:protectionLevel="signature" />
+    <uses-permission android:name="${packageName}.permission.C2D_MESSAGE" />
+</manifest>
+```
+
+Information: http://tools.android.com/tech-docs/new-build-system/user-guide/manifest-merger
+
+???
+This is the kind of killer feature that justified the move to Gradle in the first place-- for us at Scopely, it is one of the things that we had had a grudging respect for in the rake+ant days.
+
+This kind of merge has rather complete documentation, and it can do a lot
+
+
+---
+# Amazon vs. Google 
+```groovy
+android {
+    flavorGroups "store", "bundle", "config"
+
+    productFlavors {
+        goog {
+            flavorGroup "store"
+        }
+        amzn {
+            flavorGroup "store"
+        }
+        ...
+    }
+}
+```
+
+---
+# Amazon vs. Google
+`src/goog/AndroidManifest.xml`:
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+      <uses-permission android:name="com.android.vending.BILLING" />
+      <uses-permission android:name="com.android.vending.CHECK_LICENSE" />
+      
+      <!-- Used for GCM, a Google-only service -->
+      <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
+      <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+      <uses-permission android:name="android.permission.WAKE_LOCK" />
+</manifest>
+```
+Because Amazon will reject you if you have the GCM or billing permissions in your manifest.
+
+---
+# How do I know what build I am?
+
+## Old school: Set value in generated properties file or resource file
+```yaml
+DEBUG=<%= @mode == "test" %>
+BUNDLE=<%=@bundle%>   # dicefree or dicepaid
+MODE=<%=@mode%>
+TARGET=<%=@target%>
+```
+
+Likely use case is controlling ads or premium features.
+
+---
+## Slightly newer school: Override a resource
+* `src/main/res/values/configuration.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="configuration_bundle">dicefree</string>
+</resources>
+```
+
+* `src/paid/res/values/paid_configuration.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="configuration_bundle">dicepaid</string>
+</resources>
+```
+
+* `src/free/res/values/free_configuration.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="configuration_bundle">dicefree</string>
+</resources>
+```
+
+???
+Note that resources always override on a per-resources basis, not on a per-file basis. The naming of `free_configuration` and `paid_configuration` is purely for disambiguation in the IDE.
+
+---
+## Newest school: Key off `BuildConfig`
+
+Remember old `BuildConfig.DEBUG`? It has family.
+
+```java
+public static final String BUILD_TYPE = "debug";
+public static final String FLAVOR = "googFree";
+public static final String FLAVOR_store = "goog";
+public static final String FLAVOR_bundle = "free";
+```
+
+This also means no overhead retrieving from properties files or resources.
+
+## Other uses
+
+```groovy
+def buildTime = new Date().format("yyyy-MM-dd'T'HH:mm'Z'", TimeZone.getTimeZone("UTC"))
+
+android {
+    defaultConfig {
+          buildConfigField "String", "BUILD_TIME", "\"$buildTime\""
+    }
+}
+```
+
+---
+# Versioning
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="<%=@gamepackage%>"
+    android:versionCode="<%=@versionCode%>"
+    android:installLocation="auto"
+    android:versionName="<%=@version%>" >
+```
+
+## Version Code and Version
+
+```groovy
+android {
+  versionCode getVersionCode()
+  versionName getVersionName()
+}
+```
+
+---
+# Getting groovy with versions
+```groovy
+def getVersionName = { ->
+    return project.hasProperty('versionName') ? versionName : null
+}
+
+ /*
+  * Make from version name and build number
+  */
+def versionCodeFromVersionName = { ->
+    if (project.hasProperty('versionName')) {
+        String[] parts = versionName.tokenize(".");
+        int[] numbers = new int[parts.length + 1];
+        for (int i = 0; i < parts.length; i++)
+            numbers[i] = Integer.parseInt(parts[i].trim());
+        if (project.hasProperty('buildNumber')) {
+            numbers[parts.length] = Integer.parseInt(buildNumber) % 10000;
+        }
+        int number = 0;
+        number += numbers[0] * 1000000
+        number += numbers[1] * 100000
+        number += numbers[2] * 10000
+        number += numbers[3]
+        return number
+    } else {
+        return -1
+    }
+}
+```
+
+???
+Uses the {@literal versionName} and {@literal buildNumber} properties of the project to construct an informative version code. Per the Android definition of the version code, it must be a 32-bit positive integer, and subsequently uploaded APKs of a single app must have monotonically increasing version codes. The version name and build number together provide a fairly good guarantee of this.
+
+---
+# Getting groovy with versions
+
+Properties can be set in a properties file:
+
+`gradle.properties`:
+```yaml
+versionName=3.1.4
+```
+
+Or on the command line:
+
+`./gradlew installGoogFreeRelease -PbuildNumber=35`
+
+---
+# Multiproject builds
+
+* `./build.gradle` – Frequently empty, unless specifying defaults.
+* `./settings.gradle` – Enumeration of all projects that will be used with `compile project(":Core-Project")`
+
+## "Project" dependencies
+```groovy
+include 'ads-sdk'
+include 'Core-Project'
+include 'Game1'
+include 'anotherDirectory/anotherProject'
+```
+
+Argument to `include` must be the path to the dependency's `build.gradle`
+
+---
+# Typical defaults for parent project
+
+```groovy
+subprojects {
+    buildscript {
+        repositories {
+            mavenCentral()
+        }
+        dependencies {
+            classpath 'com.android.tools.build:gradle:0.10.2'
+        }
+    }
+
+    apply plugin: 'android'
+
+    compileSdkVersion 19
+
+    buildToolsVersion "19.1.0"
+
+    // Configures the dexer. Our projects frequently exhaust the default heap allocated to the dexer
+    dexOptions {
+        incremental true
+        javaMaxHeapSize "4g"
+        preDexLibraries = "true".equals(System.getProperty("pre-dex", "true"))
+    }
+
+    defaultConfig {
+        minSdkVersion 14
+        targetSdkVersion 19
+    } 
+}
+```
+---
+# Pulling code into a "plugin"
+
+```groovy
+apply from: '../client-build-scripts/Android/Universal/base_build.gradle'
+```
+
+`base_build.gradle`:
+```groovy
+task assembleFiles(type: Copy, dependsOn: )
+    from(jar.outputs.files) {
+        into 'lib'
+    }
+
+    from(configurations.runtime) {
+        into 'lib'
+    }
+
+    from('build/scripts') {
+        into 'bin'
+    }
+
+    from("$rootProject.projectDir/templates") {
+        into 'scripts'
+        include 'upstart-template.conf.template'
+        rename { file -> "${project.name}.conf" }
+        expand(serviceName: project.name)
+
+    }
+}
+```
+
+???
+Uses Groovy strings (should look familiar from the next-gen manifest merging)
+Uses Groovy templating
+
+---
+# More on Groovy templating (optional)
+(Non-Android example)
+```upstart
+# Upstart service configuration
+# Generated from /templates/upstart-template.conf.template
+
+description "titan-${serviceName}"
+
+start on filesystem and started networking
+stop on shutdown
+
+script
+    export HOME="/opt/scopely"
+
+    echo \$\$ > /var/run/${serviceName}.pid
+    exec sudo -u ubuntu \$HOME/${serviceName}/bin/${serviceName} >> /var/log/${serviceName}.sys.log 2>&1
+end script
+
+pre-start script
+    echo "[`date -u +%Y-%m-%dT%T.%3NZ`] (sys) Starting" >> /var/log/${serviceName}.sys.log
+end script
+
+pre-stop script
+    rm /var/run/titan-${serviceName}.pid
+    echo "[`date -u +%Y-%m-%dT%T.%3NZ`] (sys) Stopping" >> /var/log/${serviceName}.sys.log
+end script
+```
+
+---
+class: middle, inverse
+# A real plugin
+See https://github.com/ajlyon/unity-gradle-plugin
+
+### Plugin docs:
+See http://www.gradle.org/docs/current/userguide/custom_plugins.html
+
+---
+# Plugins you don't need to write
+* `android-sdk-manager` @ `'com.jakewharton.sdkmanager:gradle-plugin:0.10.+'`
+
+Automatically downloads the specified versions of Android and build tools. Perfect for CI.
+
+* `android-test` @ `'org.robolectric.gradle:gradle-android-test-plugin:0.10.0'`
+
+Runs Robolectric tests on the JVM. Run by Pivotal, which took over from Jake Wharton.
+
+---
+# Gradle Support
+## IDEs
+1. IntelliJ / Android Studio
+1. Eclipse. Not worth trying at present; can grok the `java` plugin but not `android`
+
+## Build Servers
+First class support:
+1. TeamCity
+1. Jenkins (+ Gradle plugin, of course)
+
+Things move fast -- wait a bit before bumping versions of IDE or Gradle.
+
+
+???
+This is one of the most vital areas at present-- growing quickly.
+---
+# Future directions for Gradle
+1. NDK development
+1. Gradle and LibGDX: http://www.badlogicgames.com/wordpress/?p=3336
+1. Gradle for C#
+  * Defunct project by Unity3d: https://github.com/Unity-Technologies/kaizen
+1. Gradle for Obj-C
+  
+---
+# Further reading:
+* The Android plugin manual, but it occasionally is a bit behind: http://tools.android.com/tech-docs/new-build-system/user-guide
+* Every new version. Read the release notes carefully.
+* Gradle User Guide: http://www.gradle.org/docs/current/userguide/userguide.html
+* Xavier Ducrohet on Google+: https://plus.google.com/+XavierDucrohet/posts
+* Google Developer Tools on Google+: https://plus.google.com/communities/114791428968349268860
+* adt-dev community on Google Groups: https://groups.google.com/forum/#!forum/adt-dev
+
+???
+Communication can be a weakness in this project... It has a history of moving faster than its docs and than its announcements.
+
+---
+# Questions?
+# Feedback
+eventmobi.com/andevconboston
+# Me
+@ajlyon<br>ajlyon@gmail.com<br>
+Scopely is hiring!
+    </textarea>
+    <script src="http://gnab.github.io/remark/downloads/remark-latest.min.js" type="text/javascript">
+    </script>
+    <script type="text/javascript">
+      var slideshow = remark.create();
+    </script>
+  </body>
+</html>
